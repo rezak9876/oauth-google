@@ -1,0 +1,63 @@
+{
+    "name": "rezak/oauth-google",
+    "description": "OAuth2 with Google for Laravel",
+    "version": "1.0.0",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+			"Rezak\\OAuthGoogle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+        }
+    },
+    "require": {
+        "php": "^8.0",
+        "illuminate/support": "*",
+        "ichtrojan/laravel-otp": "^2.0",
+        "laravel/socialite": "^5.16"
+    },
+    "require-dev": {
+        "pestphp/pest": "^2.36",
+        "orchestra/testbench": "^8.27"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "@clear",
+            "@prepare"
+        ],
+        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "build": "@php vendor/bin/testbench workbench:build --ansi",
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench serve --ansi"
+        ],
+        "lint": [
+            "@php vendor/bin/phpstan analyse --verbose --ansi"
+        ],
+        "test": [
+            "@php vendor/bin/pest"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "RezaK\\OAuthGoogle\\OAuthGoogleServiceProvider"
+            ]
+        }
+    }
+}
