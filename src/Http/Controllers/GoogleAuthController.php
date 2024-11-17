@@ -73,7 +73,6 @@ class GoogleAuthController
     public function handleGoogleCallback(Request $request)
     {
         $user = Socialite::driver('google')->stateless()->user();
-
         $authUser = User::whereHas('oauthProviders', function ($query) use ($user) {
             $query->where('provider', 'google')
                 ->where('provider_user_id', $user->getId());
@@ -93,6 +92,6 @@ class GoogleAuthController
 
         $token = $authUser->createToken('auth_token')->plainTextToken;
 
-        return redirect()->to('http://localhost/laravel-v11-fresh/public/callback?token=' . urlencode($token));
+        return redirect()->to('http://localhost:3000/fa?token=' . urlencode($token));
     }
 }
