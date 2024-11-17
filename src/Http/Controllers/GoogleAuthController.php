@@ -2,49 +2,97 @@
 
 namespace RezaK\OAuthGoogle\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use Illuminate\Support\Facades\Crypt;
 
+/**
+ * @OA\Tag(
+ *     name="OAuth Google",
+ *     description="OAuth authentication with Google"
+ * )
+ */
 class GoogleAuthController
 {
+    /**
+     * @OA\Get(
+     *     path="/auth/oauth/google",
+     *     summary="Redirect to Google for authentication",
+     *     description="Redirect the user to Google OAuth page to authenticate.",
+     *     operationId="redirectToGoogle",
+     *     tags={"OAuth Google"},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Redirect URL for Google OAuth",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="url", type="string", example="https://accounts.google.com/o/oauth2/auth?...")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request"
+     *     )
+     * )
+     */
     public function redirectToGoogle()
     {
         return response()->json(['url' => Socialite::driver('google')->stateless()->redirect()->getTargetUrl()]);
     }
 
+    /**
+     * @OA\Get(
+     *     path="/auth/oauth/google/callback",
+     *     summary="Handle the Google OAuth callback",
+     *     description="Handle the callback from Google after authentication, retrieve or create the user, and generate an authentication token.",
+     *     operationId="handleGoogleCallback",
+     *     tags={"OAuth Google"},
+     *     @OA\Parameter(
+     *         name="code",
+     *         in="query",
+     *         description="OAuth code returned by Google",
+     *         required=true,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Redirect with token",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Redirecting with token.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="User not found"
+     *     )
+     * )
+     */
     public function handleGoogleCallback(Request $request)
     {
-        // try {
-            $user = Socialite::driver('google')->stateless()->user();
-            // Here you can save user information in your database
-            // and issue a token, e.g., JWT token
+        $user = Socialite::driver('google')->stateless()->user();
 
-            // Assuming you have a User model and you handle the logic to find or create a user
-            // $authUser = User::firstOrCreate(
-            //     ['google_id' => $user->getId()],
-            //     ['name' => $user->getName(), 'email' => $user->getEmail()]
-            // );
-            $authUser = User::where('id',1)->first();
+        $authUser = User::whereHas('oauthProviders', function ($query) use ($user) {
+            $query->where('provider', 'google')
+                ->where('provider_user_id', $user->getId());
+        })->first();
 
-            // Create a token for the user
-            $token = $authUser->createToken('auth_token')->plainTextToken;
-            $token = '1';
-            $encryptedToken =  $this->customEncrypt($token);
-            return redirect()->to('http://localhost/laravel-v11-fresh/public/callback?token=' . urlencode($encryptedToken));
-        // } catch (\Exception $e) {
-        //     return response()->json(['error' => 'Unable to login with Google'], 500);
-        // }
-    }
+        if (!$authUser) {
+            $authUser = User::firstOrCreate(
+                ['email' => $user->getEmail()],
+                ['name' => $user->getName()]
+            );
 
-    public function customEncrypt($string)
-    {
-        $key = hex2bin('f3b1a70b2fd16a6b9e25d33cbf9ac8e8b4f2c52f5ab6d7e13d90c6b831be5a64'); // Use the same key as in the frontend
-        $cipher = 'AES-256-CBC';
-        $iv = random_bytes(openssl_cipher_iv_length($cipher));
-        $encrypted = openssl_encrypt($string, $cipher, $key, 0, $iv);
-        return base64_encode($iv . $encrypted); // Concatenate IV with encrypted data
+            $authUser->oauthProviders()->create([
+                'provider' => 'google',
+                'provider_user_id' => $user->getId(),
+            ]);
+        }
+
+        $token = $authUser->createToken('auth_token')->plainTextToken;
+
+        return redirect()->to('http://localhost/laravel-v11-fresh/public/callback?token=' . urlencode($token));
     }
 }
